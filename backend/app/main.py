@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.database import engine, Base
-from app.routers import auth, users
+from app.routers import auth, users, productos
 import os
 
 # Crear tablas
@@ -21,6 +21,7 @@ app.add_middleware(
 )
 
 # Routers API
+app.include_router(productos.router, prefix="/api/productos", tags=["productos"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 
