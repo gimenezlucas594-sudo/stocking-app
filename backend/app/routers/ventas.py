@@ -51,12 +51,16 @@ def crear_venta(
             "subtotal": subtotal
         })
     
-    # Crear venta
-    nueva_venta = Venta(
-        total=total,
-        vendedor_id=current_user.id,
-        local_id=current_user.local_id
-    )
+  # Crear venta
+   nueva_venta = Venta(
+       total=total,
+       vendedor_id=current_user.id,
+       local_id=current_user.local_id,
+       medio_pago=data.medio_pago,
+       monto_efectivo=data.monto_efectivo,
+       monto_tarjeta=data.monto_tarjeta,
+       monto_mercadopago=data.monto_mercadopago
+   )
     db.add(nueva_venta)
     db.flush()
     
