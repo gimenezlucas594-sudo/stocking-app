@@ -52,3 +52,26 @@ class LocalRead(BaseModel):
     
     class Config:
         from_attributes = True
+
+# ========== PRODUCTOS ==========
+class ProductoCreate(BaseModel):
+    nombre: str = Field(..., min_length=1)
+    precio: float = Field(..., ge=0)
+    stock: int = Field(..., ge=0)
+    categoria: Optional[str] = None
+
+class ProductoUpdate(BaseModel):
+    nombre: Optional[str] = None
+    precio: Optional[float] = Field(None, ge=0)
+    stock: Optional[int] = Field(None, ge=0)
+    categoria: Optional[str] = None
+
+class ProductoRead(BaseModel):
+    id: int
+    nombre: str
+    precio: float
+    stock: int
+    categoria: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
