@@ -90,6 +90,10 @@ class VentaItemCreate(BaseModel):
 
 class VentaCreate(BaseModel):
     items: List[VentaItemCreate]
+    medio_pago: str  # "efectivo", "tarjeta", "mercadopago", "mixto"
+    monto_efectivo: float = 0
+    monto_tarjeta: float = 0
+    monto_mercadopago: float = 0
 
 class VentaItemRead(BaseModel):
     id: int
@@ -107,7 +111,14 @@ class VentaRead(BaseModel):
     vendedor_id: int
     local_id: int
     created_at: datetime
+    medio_pago: Optional[str] = None
+    monto_efectivo: Optional[float] = 0
+    monto_tarjeta: Optional[float] = 0
+    monto_mercadopago: Optional[float] = 0
     items: List[VentaItemRead]
+    
+    class Config:
+        from_attributes = True
     
     class Config:
         from_attributes = True
