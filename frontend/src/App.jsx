@@ -1,6 +1,6 @@
 const { useState, useEffect } = React;
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_URL = "https://stocking-app.onrender.com/api";
 
 function Login({ onLoginSuccess }) {
     const [username, setUsername] = useState('');
