@@ -32,3 +32,14 @@ class Local(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     empleados = relationship("User", back_populates="local")
+
+class Producto(Base):
+    __tablename__ = "productos"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False, index=True)
+    precio = Column(Float, nullable=False)
+    stock = Column(Integer, nullable=False, default=0)
+    categoria = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
