@@ -3,14 +3,14 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copiar requirements e instalar dependencias
-COPY back-end/requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar backend
-COPY back-end/ .
+COPY backend/ .
 
 # Copiar frontend
-COPY front-end/ ./frontend/
+COPY frontend/ ./frontend/
 
 # Inicializar base de datos
 RUN python init_db.py || true
