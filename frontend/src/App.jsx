@@ -411,6 +411,11 @@ function DashboardEmpleado({ user, onLogout }) {
     const [carrito, setCarrito] = useState([]);
     const [busqueda, setBusqueda] = useState('');
     const [loading, setLoading] = useState(false);
+    const [mostrarPago, setMostrarPago] = useState(false);
+    const [medioPago, setMedioPago] = useState('efectivo');
+    const [montoEfectivo, setMontoEfectivo] = useState(0);
+    const [montoTarjeta, setMontoTarjeta] = useState(0);
+    const [montoMercadopago, setMontoMercadopago] = useState(0);
 
     useEffect(() => {
         cargarProductos();
@@ -477,12 +482,20 @@ function DashboardEmpleado({ user, onLogout }) {
         }, 0);
     };
 
-    const realizarVenta = async () => {
+const abrirPago = () => {
         if (carrito.length === 0) {
             alert('El carrito está vacío');
             return;
         }
+        const total = calcularTotal();
+        setMontoEfectivo(total);
+        setMontoTarjeta(0);
+        setMontoMercadopago(0);
+        setMedioPago('efectivo');
+        setMostrarPago(true);
+    };
 
+    const realizarVenta = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -497,12 +510,19 @@ function DashboardEmpleado({ user, onLogout }) {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ items })
+                body: JSON.stringify({ 
+                    items,
+                    medio_pago: medioPago,
+                    monto_efectivo: montoEfectivo,
+                    monto_tarjeta: montoTarjeta,
+                    monto_mercadopago: montoMercadopago
+                })
             });
 
             if (response.ok) {
                 alert('✅ Venta registrada correctamente');
                 setCarrito([]);
+                setMostrarPago(false);
                 await cargarProductos();
             } else {
                 const error = await response.json();
@@ -619,7 +639,7 @@ function DashboardEmpleado({ user, onLogout }) {
                                         </div>
 
                                         <button
-                                            onClick={realizarVenta}
+                                            onClick={abrirPago}
                                             disabled={loading}
                                             className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
                                         >
@@ -639,6 +659,161 @@ function DashboardEmpleado({ user, onLogout }) {
                     </div>
                 </div>
             </div>
+            {/* Modal de Medios de Pago */}
+            {mostrarPago && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                        <h3 className="text-2xl font-bold mb-4">Método de Pago</h3>
+                        
+                        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+                            <p className="text-sm text-gray-600">Total a cobrar:</p>
+                            <p className="text-3xl font-bold text-green-600">${calcularTotal().toFixed(2)}</p>
+                        </div>
+
+                        <div className="space-y-3 mb-6">
+                            <button
+                                onClick={() => {
+                                    setMedioPago('efectivo');
+                                    setMontoEfectivo(calcularTotal());
+                                    setMontoTarjeta(0);
+                                    setMontoMercadopago(0);
+                                }}
+                                className={`w-full p-4 rounded-lg border-2 transition ${
+                                    medioPago === 'efectivo' 
+                                        ? 'border-green-500 bg-green-50' 
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-lg font-semibold">💵 Efectivo</span>
+                                    {medioPago === 'efectivo' && <span className="text-green-600">✓</span>}
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setMedioPago('tarjeta');
+                                    setMontoEfectivo(0);
+                                    setMontoTarjeta(calcularTotal());
+                                    setMontoMercadopago(0);
+                                }}
+                                className={`w-full p-4 rounded-lg border-2 transition ${
+                                    medioPago === 'tarjeta' 
+                                        ? 'border-blue-500 bg-blue-50' 
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-lg font-semibold">💳 Tarjeta</span>
+                                    {medioPago === 'tarjeta' && <span className="text-blue-600">✓</span>}
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setMedioPago('mercadopago');
+                                    setMontoEfectivo(0);
+                                    setMontoTarjeta(0);
+                                    setMontoMercadopago(calcularTotal());
+                                }}
+                                className={`w-full p-4 rounded-lg border-2 transition ${
+                                    medioPago === 'mercadopago' 
+                                        ? 'border-cyan-500 bg-cyan-50' 
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-lg font-semibold">🟦 Mercado Pago</span>
+                                    {medioPago === 'mercadopago' && <span className="text-cyan-600">✓</span>}
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setMedioPago('mixto');
+                                    const total = calcularTotal();
+                                    setMontoEfectivo(total / 2);
+                                    setMontoTarjeta(total / 2);
+                                    setMontoMercadopago(0);
+                                }}
+                                className={`w-full p-4 rounded-lg border-2 transition ${
+                                    medioPago === 'mixto' 
+                                        ? 'border-purple-500 bg-purple-50' 
+                                        : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-lg font-semibold">🔀 Pago Mixto</span>
+                                    {medioPago === 'mixto' && <span className="text-purple-600">✓</span>}
+                                </div>
+                            </button>
+                        </div>
+
+                        {medioPago === 'mixto' && (
+                            <div className="space-y-3 mb-6 p-4 bg-gray-50 rounded-lg">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">💵 Efectivo:</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={montoEfectivo}
+                                        onChange={(e) => setMontoEfectivo(parseFloat(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">💳 Tarjeta:</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={montoTarjeta}
+                                        onChange={(e) => setMontoTarjeta(parseFloat(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">🟦 Mercado Pago:</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={montoMercadopago}
+                                        onChange={(e) => setMontoMercadopago(parseFloat(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div className="pt-2 border-t">
+                                    <div className="flex justify-between text-sm">
+                                        <span>Suma parcial:</span>
+                                        <span className={
+                                            (montoEfectivo + montoTarjeta + montoMercadopago).toFixed(2) === calcularTotal().toFixed(2)
+                                                ? 'text-green-600 font-bold'
+                                                : 'text-red-600 font-bold'
+                                        }>
+                                            ${(montoEfectivo + montoTarjeta + montoMercadopago).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={realizarVenta}
+                                disabled={loading || (medioPago === 'mixto' && (montoEfectivo + montoTarjeta + montoMercadopago).toFixed(2) !== calcularTotal().toFixed(2))}
+                                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
+                            >
+                                {loading ? 'Procesando...' : 'Confirmar Pago'}
+                            </button>
+                            <button
+                                onClick={() => setMostrarPago(false)}
+                                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300 transition"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
