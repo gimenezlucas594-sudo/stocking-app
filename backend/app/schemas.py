@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Optional
-from app.models import UserRole
+from typing import Optional, List
+from datetime import datetime
+from app.models import UserRole, TipoVenta
 
 # ========== USER INFO (PRIMERO) ==========
 class UserInfo(BaseModel):
@@ -56,22 +57,57 @@ class LocalRead(BaseModel):
 # ========== PRODUCTOS ==========
 class ProductoCreate(BaseModel):
     nombre: str = Field(..., min_length=1)
+    codigo_barras: Optional[str] = None
     precio: float = Field(..., ge=0)
-    stock: int = Field(..., ge=0)
+    stock: float = Field(..., ge=0)
     categoria: Optional[str] = None
+    tipo_venta: TipoVenta = TipoVenta.UNIDAD
 
 class ProductoUpdate(BaseModel):
     nombre: Optional[str] = None
+    codigo_barras: Optional[str] = None
     precio: Optional[float] = Field(None, ge=0)
-    stock: Optional[int] = Field(None, ge=0)
+    stock: Optional[float] = Field(None, ge=0)
     categoria: Optional[str] = None
+    tipo_venta: Optional[TipoVenta] = None
 
 class ProductoRead(BaseModel):
     id: int
     nombre: str
+    codigo_barras: Optional[str] = None
     precio: float
-    stock: int
+    stock: float
     categoria: Optional[str] = None
+    tipo_venta: TipoVenta
+    
+    class Config:
+        from_attributes = True
+
+# ========== VENTAS ==========
+class VentaItemCreate(BaseModel):
+    producto_id: int
+    cantidad: float = Field(..., gt=0)
+
+class VentaCreate(BaseModel):
+    items: List[VentaItemCreate]
+
+class VentaItemRead(BaseModel):
+    id: int
+    producto_id: int
+    cantidad: float
+    precio_unitario: float
+    subtotal: float
+    
+    class Config:
+        from_attributes = True
+
+class VentaRead(BaseModel):
+    id: int
+    total: float
+    vendedor_id: int
+    local_id: int
+    created_at: datetime
+    items: List[VentaItemRead]
     
     class Config:
         from_attributes = True
