@@ -61,6 +61,7 @@ def crear_venta(
        monto_tarjeta=data.monto_tarjeta,
        monto_mercadopago=data.monto_mercadopago
    )
+
     db.add(nueva_venta)
     db.flush()
     
