@@ -87,16 +87,19 @@ function Login({ onLoginSuccess }) {
     );
 }
 
-// ============ Dashboard Jefe con Productos ============
+// ============ Dashboard Jefe con Productos y Ventas ============
 function DashboardJefe({ user, onLogout }) {
+    const [vista, setVista] = useState('productos');
     const [productos, setProductos] = useState([]);
+    const [ventas, setVentas] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando] = useState(null);
-    const [formData, setFormData] = useState({ nombre: '', precio: '', stock: '', categoria: '' });
+    const [formData, setFormData] = useState({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' });
 
     useEffect(() => {
         cargarProductos();
-    }, []);
+        if (vista === 'ventas') cargarVentas();
+    }, [vista]);
 
     const cargarProductos = async () => {
         try {
@@ -109,7 +112,22 @@ function DashboardJefe({ user, onLogout }) {
                 setProductos(data);
             }
         } catch (err) {
-            console.error('Error cargando productos:', err);
+            console.error('Error:', err);
+        }
+    };
+
+    const cargarVentas = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/ventas/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setVentas(data);
+            }
+        } catch (err) {
+            console.error('Error:', err);
         }
     };
 
@@ -130,16 +148,18 @@ function DashboardJefe({ user, onLogout }) {
                 },
                 body: JSON.stringify({
                     nombre: formData.nombre,
+                    codigo_barras: formData.codigo_barras || null,
                     precio: parseFloat(formData.precio),
-                    stock: parseInt(formData.stock),
-                    categoria: formData.categoria || null
+                    stock: parseFloat(formData.stock),
+                    categoria: formData.categoria || null,
+                    tipo_venta: formData.tipo_venta
                 })
             });
 
             if (response.ok) {
                 await cargarProductos();
                 setShowModal(false);
-                setFormData({ nombre: '', precio: '', stock: '', categoria: '' });
+                setFormData({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' });
                 setEditando(null);
             }
         } catch (err) {
@@ -168,9 +188,11 @@ function DashboardJefe({ user, onLogout }) {
         setEditando(producto);
         setFormData({
             nombre: producto.nombre,
+            codigo_barras: producto.codigo_barras || '',
             precio: producto.precio.toString(),
             stock: producto.stock.toString(),
-            categoria: producto.categoria || ''
+            categoria: producto.categoria || '',
+            tipo_venta: producto.tipo_venta
         });
         setShowModal(true);
     };
@@ -180,11 +202,22 @@ function DashboardJefe({ user, onLogout }) {
             <nav className="bg-white shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-6">
                             <h1 className="text-2xl font-bold text-indigo-600">StocKing</h1>
-                            <span className="ml-4 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
-                                👑 {user.role === 'jefe_papa' ? 'Jefe Papá' : 'Jefe Mamá'}
-                            </span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setVista('productos')}
+                                    className={`px-4 py-2 rounded-lg transition ${vista === 'productos' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    Productos
+                                </button>
+                                <button 
+                                    onClick={() => setVista('ventas')}
+                                    className={`px-4 py-2 rounded-lg transition ${vista === 'ventas' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    Ventas
+                                </button>
+                            </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <span className="text-gray-700">{user.full_name || user.username}</span>
@@ -197,55 +230,100 @@ function DashboardJefe({ user, onLogout }) {
             </nav>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-gray-900">Productos</h2>
-                    <button 
-                        onClick={() => { setShowModal(true); setEditando(null); setFormData({ nombre: '', precio: '', stock: '', categoria: '' }); }}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                    >
-                        + Nuevo Producto
-                    </button>
-                </div>
+                {vista === 'productos' ? (
+                    <>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-3xl font-bold text-gray-900">Productos</h2>
+                            <button 
+                                onClick={() => { setShowModal(true); setEditando(null); setFormData({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' }); }}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                            >
+                                + Nuevo Producto
+                            </button>
+                        </div>
 
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoría</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {productos.map(producto => (
-                                <tr key={producto.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{producto.nombre}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{producto.categoria || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${producto.precio}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{producto.stock}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                                        <button onClick={() => abrirEditar(producto)} className="text-indigo-600 hover:text-indigo-900">Editar</button>
-                                        <button onClick={() => eliminarProducto(producto.id)} className="text-red-600 hover:text-red-900">Eliminar</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {productos.length === 0 && (
-                        <div className="text-center py-12 text-gray-500">No hay productos cargados</div>
-                    )}
-                </div>
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {productos.map(producto => (
+                                        <tr key={producto.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{producto.codigo_barras || '-'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{producto.nombre}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {producto.tipo_venta === 'peso' ? '⚖️ Peso' : '📦 Unidad'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                ${producto.precio}{producto.tipo_venta === 'peso' ? '/kg' : ''}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {producto.stock}{producto.tipo_venta === 'peso' ? 'g' : ''}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                                                <button onClick={() => abrirEditar(producto)} className="text-indigo-600 hover:text-indigo-900">Editar</button>
+                                                <button onClick={() => eliminarProducto(producto.id)} className="text-red-600 hover:text-red-900">Eliminar</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {productos.length === 0 && (
+                                <div className="text-center py-12 text-gray-500">No hay productos cargados</div>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <h2 className="text-3xl font-bold text-gray-900 mb-6">Historial de Ventas</h2>
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {ventas.map(venta => (
+                                        <tr key={venta.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {new Date(venta.created_at).toLocaleString('es-AR')}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                                ${venta.total.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {venta.items.length} productos
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {ventas.length === 0 && (
+                                <div className="text-center py-12 text-gray-500">No hay ventas registradas</div>
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
 
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <h3 className="text-xl font-bold mb-4">{editando ? 'Editar Producto' : 'Nuevo Producto'}</h3>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                                 <input
                                     type="text"
                                     value={formData.nombre}
@@ -255,7 +333,31 @@ function DashboardJefe({ user, onLogout }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras</label>
+                                <input
+                                    type="text"
+                                    value={formData.codigo_barras}
+                                    onChange={(e) => setFormData({...formData, codigo_barras: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    placeholder="Escanear o ingresar manualmente"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Venta *</label>
+                                <select
+                                    value={formData.tipo_venta}
+                                    onChange={(e) => setFormData({...formData, tipo_venta: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    required
+                                >
+                                    <option value="unidad">Por Unidad</option>
+                                    <option value="peso">Por Peso (kg)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Precio * {formData.tipo_venta === 'peso' && '(por kg)'}
+                                </label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -266,9 +368,12 @@ function DashboardJefe({ user, onLogout }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Stock * {formData.tipo_venta === 'peso' && '(en gramos)'}
+                                </label>
                                 <input
                                     type="number"
+                                    step={formData.tipo_venta === 'peso' ? '1' : '1'}
                                     value={formData.stock}
                                     onChange={(e) => setFormData({...formData, stock: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -276,7 +381,7 @@ function DashboardJefe({ user, onLogout }) {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría (opcional)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                                 <input
                                     type="text"
                                     value={formData.categoria}
@@ -284,7 +389,7 @@ function DashboardJefe({ user, onLogout }) {
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                 />
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 pt-4">
                                 <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">
                                     Guardar
                                 </button>
@@ -300,9 +405,12 @@ function DashboardJefe({ user, onLogout }) {
     );
 }
 
-// ============ Dashboard Empleado ============
+// ============ Dashboard Empleado con Sistema de Ventas ============
 function DashboardEmpleado({ user, onLogout }) {
     const [productos, setProductos] = useState([]);
+    const [carrito, setCarrito] = useState([]);
+    const [busqueda, setBusqueda] = useState('');
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         cargarProductos();
@@ -323,22 +431,103 @@ function DashboardEmpleado({ user, onLogout }) {
         }
     };
 
+    const buscarProducto = (termino) => {
+        setBusqueda(termino);
+        if (termino.length > 0) {
+            const encontrado = productos.find(p => 
+                p.codigo_barras === termino || 
+                p.nombre.toLowerCase().includes(termino.toLowerCase())
+            );
+            if (encontrado) {
+                agregarAlCarrito(encontrado);
+                setBusqueda('');
+            }
+        }
+    };
+
+    const agregarAlCarrito = (producto) => {
+        const existe = carrito.find(item => item.producto.id === producto.id);
+        if (existe) {
+            setCarrito(carrito.map(item => 
+                item.producto.id === producto.id 
+                    ? {...item, cantidad: item.cantidad + (producto.tipo_venta === 'peso' ? 100 : 1)}
+                    : item
+            ));
+        } else {
+            setCarrito([...carrito, { producto, cantidad: producto.tipo_venta === 'peso' ? 100 : 1 }]);
+        }
+    };
+
+    const actualizarCantidad = (productoId, nuevaCantidad) => {
+        if (nuevaCantidad <= 0) {
+            setCarrito(carrito.filter(item => item.producto.id !== productoId));
+        } else {
+            setCarrito(carrito.map(item => 
+                item.producto.id === productoId 
+                    ? {...item, cantidad: parseFloat(nuevaCantidad)}
+                    : item
+            ));
+        }
+    };
+
+    const calcularTotal = () => {
+        return carrito.reduce((total, item) => {
+            const cantidad = item.producto.tipo_venta === 'peso' ? item.cantidad / 1000 : item.cantidad;
+            return total + (item.producto.precio * cantidad);
+        }, 0);
+    };
+
+    const realizarVenta = async () => {
+        if (carrito.length === 0) {
+            alert('El carrito está vacío');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const items = carrito.map(item => ({
+                producto_id: item.producto.id,
+                cantidad: item.producto.tipo_venta === 'peso' ? item.cantidad : item.cantidad
+            }));
+
+            const response = await fetch(`${API_URL}/ventas/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ items })
+            });
+
+            if (response.ok) {
+                alert('✅ Venta registrada correctamente');
+                setCarrito([]);
+                await cargarProductos();
+            } else {
+                const error = await response.json();
+                alert('❌ Error: ' + error.detail);
+            }
+        } catch (err) {
+            alert('❌ Error al procesar la venta');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <nav className="bg-white shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
-                            <h1 className="text-2xl font-bold text-indigo-600">StocKing</h1>
+                            <h1 className="text-2xl font-bold text-indigo-600">StocKing - Ventas</h1>
                             <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                                👤 Empleado
+                                {user.local_nombre || 'Sin local'}
                             </span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <p className="text-gray-700 font-medium">{user.full_name || user.username}</p>
-                                <p className="text-sm text-gray-500">{user.local_nombre || 'Sin local'}</p>
-                            </div>
+                            <span className="text-gray-700">{user.full_name || user.username}</span>
                             <button onClick={onLogout} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
                                 Salir
                             </button>
@@ -348,23 +537,107 @@ function DashboardEmpleado({ user, onLogout }) {
             </nav>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Productos Disponibles</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {productos.map(producto => (
-                        <div key={producto.id} className="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
-                            <h3 className="font-bold text-lg text-gray-900">{producto.nombre}</h3>
-                            {producto.categoria && <p className="text-sm text-gray-500">{producto.categoria}</p>}
-                            <div className="mt-4 flex justify-between items-center">
-                                <span className="text-2xl font-bold text-indigo-600">${producto.precio}</span>
-                                <span className="text-sm text-gray-600">Stock: {producto.stock}</span>
-                            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Panel de productos */}
+                    <div className="lg:col-span-2">
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={busqueda}
+                                onChange={(e) => buscarProducto(e.target.value)}
+                                placeholder="🔍 Buscar por nombre o escanear código de barras..."
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg"
+                                autoFocus
+                            />
                         </div>
-                    ))}
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {productos.filter(p => p.stock > 0).map(producto => (
+                                <button
+                                    key={producto.id}
+                                    onClick={() => agregarAlCarrito(producto)}
+                                    className="bg-white rounded-xl shadow-sm p-4 border-2 border-gray-200 hover:border-indigo-500 transition text-left"
+                                >
+                                    <h3 className="font-bold text-gray-900">{producto.nombre}</h3>
+                                    <p className="text-2xl font-bold text-indigo-600 mt-2">
+                                        ${producto.precio}{producto.tipo_venta === 'peso' && '/kg'}
+                                    </p>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Stock: {producto.stock}{producto.tipo_venta === 'peso' ? 'g' : ''}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Carrito */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
+                            <h2 className="text-xl font-bold mb-4">Carrito</h2>
+                            
+                            {carrito.length === 0 ? (
+                                <p className="text-gray-500 text-center py-8">Carrito vacío</p>
+                            ) : (
+                                <>
+                                    <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
+                                        {carrito.map(item => (
+                                            <div key={item.producto.id} className="border-b pb-3">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="font-medium text-sm">{item.producto.nombre}</span>
+                                                    <button 
+                                                        onClick={() => actualizarCantidad(item.producto.id, 0)}
+                                                        className="text-red-500 text-sm"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="number"
+                                                        value={item.cantidad}
+                                                        onChange={(e) => actualizarCantidad(item.producto.id, e.target.value)}
+                                                        className="w-20 px-2 py-1 border rounded text-sm"
+                                                        step={item.producto.tipo_venta === 'peso' ? '10' : '1'}
+                                                    />
+                                                    <span className="text-sm text-gray-600">
+                                                        {item.producto.tipo_venta === 'peso' ? 'g' : 'un'}
+                                                    </span>
+                                                    <span className="ml-auto font-bold text-sm">
+                                                        ${(item.producto.precio * (item.producto.tipo_venta === 'peso' ? item.cantidad / 1000 : item.cantidad)).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="border-t pt-4">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="text-xl font-bold">TOTAL:</span>
+                                            <span className="text-3xl font-bold text-green-600">
+                                                ${calcularTotal().toFixed(2)}
+                                            </span>
+                                        </div>
+
+                                        <button
+                                            onClick={realizarVenta}
+                                            disabled={loading}
+                                            className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
+                                        >
+                                            {loading ? 'Procesando...' : '💰 Cobrar'}
+                                        </button>
+
+                                        <button
+                                            onClick={() => setCarrito([])}
+                                            className="w-full mt-2 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition"
+                                        >
+                                            Limpiar
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
-                {productos.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">No hay productos disponibles</div>
-                )}
             </div>
         </div>
     );
