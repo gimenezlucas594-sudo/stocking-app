@@ -62,6 +62,10 @@ class Venta(Base):
     vendedor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     local_id = Column(Integer, ForeignKey("locales.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    medio_pago = Column(String, nullable=True)
+    monto_efectivo = Column(Float, nullable=True, default=0)
+    monto_tarjeta = Column(Float, nullable=True, default=0)
+    monto_mercadopago = Column(Float, nullable=True, default=0)
     
     vendedor = relationship("User", back_populates="ventas")
     local = relationship("Local", back_populates="ventas")
