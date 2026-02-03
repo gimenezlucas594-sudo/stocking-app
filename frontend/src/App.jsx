@@ -147,14 +147,14 @@ function DashboardJefe({ user, onLogout }) {
         }
     };
 
-    const verificarCodigoDuplicado = async (codigo) => {
+  const verificarCodigoDuplicado = async (codigo) => {
         if (!codigo) {
             setErrorCodigo('');
             return true;
         }
 
         const duplicado = productos.find(p => 
-            p.codigo_barras === codigo && (!editando || p.id !== editando.id)
+            p.codigo_barras && p.codigo_barras === codigo && (!editando || p.id !== editando.id)
         );
 
         if (duplicado) {
@@ -544,17 +544,21 @@ function DashboardEmpleado({ user, onLogout }) {
         }
     };
 
-    const buscarProducto = (termino) => {
+const buscarProducto = (termino) => {
         setBusqueda(termino);
-        if (termino.length > 2) {
-            const encontrado = productos.find(p => 
-                p.codigo_barras === termino || 
-                p.nombre.toLowerCase().includes(termino.toLowerCase())
-            );
-            if (encontrado) {
-                agregarAlCarrito(encontrado);
-                setBusqueda('');
-            }
+        
+        // Si tiene más de 5 caracteres, probablemente es un código escaneado
+        if (termino.length >= 5) {
+            setTimeout(() => {
+                const encontrado = productos.find(p => 
+                    (p.codigo_barras && p.codigo_barras === termino) || 
+                    p.nombre.toLowerCase().includes(termino.toLowerCase())
+                );
+                if (encontrado) {
+                    agregarAlCarrito(encontrado);
+                    setBusqueda('');
+                }
+            }, 100);
         }
     };
 
