@@ -91,15 +91,30 @@ function Login({ onLoginSuccess }) {
 function DashboardJefe({ user, onLogout }) {
     const [vista, setVista] = useState('productos');
     const [productos, setProductos] = useState([]);
+    const [productosFiltrados, setProductosFiltrados] = useState([]);
+    const [busquedaProducto, setBusquedaProducto] = useState('');
     const [ventas, setVentas] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando] = useState(null);
     const [formData, setFormData] = useState({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' });
+    const [errorCodigo, setErrorCodigo] = useState('');
 
     useEffect(() => {
         cargarProductos();
         if (vista === 'ventas') cargarVentas();
     }, [vista]);
+
+    useEffect(() => {
+        if (busquedaProducto.length > 0) {
+            const filtrados = productos.filter(p => 
+                p.nombre.toLowerCase().includes(busquedaProducto.toLowerCase()) ||
+                (p.codigo_barras && p.codigo_barras.includes(busquedaProducto))
+            );
+            setProductosFiltrados(filtrados);
+        } else {
+            setProductosFiltrados(productos);
+        }
+    }, [busquedaProducto, productos]);
 
     const cargarProductos = async () => {
         try {
@@ -110,6 +125,7 @@ function DashboardJefe({ user, onLogout }) {
             if (response.ok) {
                 const data = await response.json();
                 setProductos(data);
+                setProductosFiltrados(data);
             }
         } catch (err) {
             console.error('Error:', err);
@@ -131,8 +147,34 @@ function DashboardJefe({ user, onLogout }) {
         }
     };
 
+    const verificarCodigoDuplicado = async (codigo) => {
+        if (!codigo) {
+            setErrorCodigo('');
+            return true;
+        }
+
+        const duplicado = productos.find(p => 
+            p.codigo_barras === codigo && (!editando || p.id !== editando.id)
+        );
+
+        if (duplicado) {
+            setErrorCodigo(`⚠️ El código ${codigo} ya existe en: ${duplicado.nombre}`);
+            return false;
+        }
+
+        setErrorCodigo('');
+        return true;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Validar código duplicado
+        const codigoValido = await verificarCodigoDuplicado(formData.codigo_barras);
+        if (!codigoValido) {
+            return;
+        }
+
         const token = localStorage.getItem('token');
         
         try {
@@ -161,6 +203,10 @@ function DashboardJefe({ user, onLogout }) {
                 setShowModal(false);
                 setFormData({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' });
                 setEditando(null);
+                setErrorCodigo('');
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
             }
         } catch (err) {
             alert('Error al guardar producto');
@@ -194,6 +240,7 @@ function DashboardJefe({ user, onLogout }) {
             categoria: producto.categoria || '',
             tipo_venta: producto.tipo_venta
         });
+        setErrorCodigo('');
         setShowModal(true);
     };
 
@@ -235,11 +282,26 @@ function DashboardJefe({ user, onLogout }) {
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-3xl font-bold text-gray-900">Productos</h2>
                             <button 
-                                onClick={() => { setShowModal(true); setEditando(null); setFormData({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' }); }}
+                                onClick={() => { 
+                                    setShowModal(true); 
+                                    setEditando(null); 
+                                    setFormData({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' }); 
+                                    setErrorCodigo('');
+                                }}
                                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
                             >
                                 + Nuevo Producto
                             </button>
+                        </div>
+
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={busquedaProducto}
+                                onChange={(e) => setBusquedaProducto(e.target.value)}
+                                placeholder="🔍 Buscar por nombre o escanear código de barras..."
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg"
+                            />
                         </div>
 
                         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -255,7 +317,7 @@ function DashboardJefe({ user, onLogout }) {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {productos.map(producto => (
+                                    {productosFiltrados.map(producto => (
                                         <tr key={producto.id}>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{producto.codigo_barras || '-'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{producto.nombre}</td>
@@ -276,8 +338,10 @@ function DashboardJefe({ user, onLogout }) {
                                     ))}
                                 </tbody>
                             </table>
-                            {productos.length === 0 && (
-                                <div className="text-center py-12 text-gray-500">No hay productos cargados</div>
+                            {productosFiltrados.length === 0 && (
+                                <div className="text-center py-12 text-gray-500">
+                                    {busquedaProducto ? 'No se encontraron productos' : 'No hay productos cargados'}
+                                </div>
                             )}
                         </div>
                     </>
@@ -290,6 +354,7 @@ function DashboardJefe({ user, onLogout }) {
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Medio de Pago</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
                                     </tr>
                                 </thead>
@@ -301,6 +366,12 @@ function DashboardJefe({ user, onLogout }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
                                                 ${venta.total.toFixed(2)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                {venta.medio_pago === 'efectivo' && '💵 Efectivo'}
+                                                {venta.medio_pago === 'tarjeta' && '💳 Tarjeta'}
+                                                {venta.medio_pago === 'mercadopago' && '🟦 Mercado Pago'}
+                                                {venta.medio_pago === 'mixto' && '🔀 Mixto'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {venta.items.length} productos
@@ -337,10 +408,16 @@ function DashboardJefe({ user, onLogout }) {
                                 <input
                                     type="text"
                                     value={formData.codigo_barras}
-                                    onChange={(e) => setFormData({...formData, codigo_barras: e.target.value})}
+                                    onChange={(e) => {
+                                        setFormData({...formData, codigo_barras: e.target.value});
+                                        verificarCodigoDuplicado(e.target.value);
+                                    }}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                     placeholder="Escanear o ingresar manualmente"
                                 />
+                                {errorCodigo && (
+                                    <p className="text-red-600 text-sm mt-1">{errorCodigo}</p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Venta *</label>
@@ -390,10 +467,21 @@ function DashboardJefe({ user, onLogout }) {
                                 />
                             </div>
                             <div className="flex gap-2 pt-4">
-                                <button type="submit" className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">
+                                <button 
+                                    type="submit" 
+                                    disabled={!!errorCodigo}
+                                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                >
                                     Guardar
                                 </button>
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300">
+                                <button 
+                                    type="button" 
+                                    onClick={() => {
+                                        setShowModal(false);
+                                        setErrorCodigo('');
+                                    }} 
+                                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+                                >
                                     Cancelar
                                 </button>
                             </div>
@@ -417,30 +505,15 @@ function DashboardEmpleado({ user, onLogout }) {
     const [montoTarjeta, setMontoTarjeta] = useState(0);
     const [montoMercadopago, setMontoMercadopago] = useState(0);
     const [ventas, setVentas] = useState([]);
-    const [vistaEmpleado, setVistaEmpleado] = useState('ventas'); // 'ventas' o 'historial'
+    const [vistaEmpleado, setVistaEmpleado] = useState('ventas');
 
-  useEffect(() => {
+    useEffect(() => {
         cargarProductos();
         if (vistaEmpleado === 'historial') {
             cargarVentas();
         }
     }, [vistaEmpleado]);
-    
-    const cargarVentas = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/ventas/`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setVentas(data);
-            }
-        } catch (err) {
-            console.error('Error:', err);
-        }
-    };
-    
+
     const cargarProductos = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -450,6 +523,21 @@ function DashboardEmpleado({ user, onLogout }) {
             if (response.ok) {
                 const data = await response.json();
                 setProductos(data);
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    };
+
+    const cargarVentas = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/ventas/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setVentas(data);
             }
         } catch (err) {
             console.error('Error:', err);
@@ -469,7 +557,7 @@ function DashboardEmpleado({ user, onLogout }) {
             }
         }
     };
-    
+
     const agregarAlCarrito = (producto) => {
         const existe = carrito.find(item => item.producto.id === producto.id);
         if (existe) {
@@ -502,7 +590,7 @@ function DashboardEmpleado({ user, onLogout }) {
         }, 0);
     };
 
-const abrirPago = () => {
+    const abrirPago = () => {
         if (carrito.length === 0) {
             alert('El carrito está vacío');
             return;
@@ -561,7 +649,7 @@ const abrirPago = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
-                            <h1 className="text-2xl font-bold text-indigo-600">StocKing - Ventas</h1>
+                            <h1 className="text-2xl font-bold text-indigo-600">StocKing</h1>
                             <div className="flex gap-2 ml-6">
                                 <button 
                                     onClick={() => setVistaEmpleado('ventas')}
@@ -576,12 +664,12 @@ const abrirPago = () => {
                                     Mis Ventas
                                 </button>
                             </div>
-                            <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                                {user.local_nombre || 'Sin local'}
-                            </span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="text-gray-700">{user.full_name || user.username}</span>
+                            <div className="text-right">
+                                <p className="text-gray-700 font-medium">{user.full_name || user.username}</p>
+                                <p className="text-sm text-gray-500">{user.local_nombre || 'Sin local'}</p>
+                            </div>
                             <button onClick={onLogout} className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
                                 Salir
                             </button>
@@ -590,10 +678,9 @@ const abrirPago = () => {
                 </div>
             </nav>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {vistaEmpleado === 'ventas' ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Panel de productos */}
                         <div className="lg:col-span-2">
                             <div className="mb-4">
                                 <input
@@ -625,7 +712,6 @@ const abrirPago = () => {
                             </div>
                         </div>
 
-                        {/* Carrito */}
                         <div className="lg:col-span-1">
                             <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
                                 <h2 className="text-xl font-bold mb-4">Carrito</h2>
@@ -694,7 +780,6 @@ const abrirPago = () => {
                         </div>
                     </div>
                 ) : (
-                    // Historial de ventas
                     <>
                         <h2 className="text-3xl font-bold text-gray-900 mb-6">Mis Ventas</h2>
                         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -737,77 +822,6 @@ const abrirPago = () => {
                 )}
             </div>
 
-                    {/* Carrito */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl shadow-lg p-6 sticky top-4">
-                            <h2 className="text-xl font-bold mb-4">Carrito</h2>
-                            
-                            {carrito.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8">Carrito vacío</p>
-                            ) : (
-                                <>
-                                    <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
-                                        {carrito.map(item => (
-                                            <div key={item.producto.id} className="border-b pb-3">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="font-medium text-sm">{item.producto.nombre}</span>
-                                                    <button 
-                                                        onClick={() => actualizarCantidad(item.producto.id, 0)}
-                                                        className="text-red-500 text-sm"
-                                                    >
-                                                        ✕
-                                                    </button>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        value={item.cantidad}
-                                                        onChange={(e) => actualizarCantidad(item.producto.id, e.target.value)}
-                                                        className="w-20 px-2 py-1 border rounded text-sm"
-                                                        step={item.producto.tipo_venta === 'peso' ? '10' : '1'}
-                                                    />
-                                                    <span className="text-sm text-gray-600">
-                                                        {item.producto.tipo_venta === 'peso' ? 'g' : 'un'}
-                                                    </span>
-                                                    <span className="ml-auto font-bold text-sm">
-                                                        ${(item.producto.precio * (item.producto.tipo_venta === 'peso' ? item.cantidad / 1000 : item.cantidad)).toFixed(2)}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="border-t pt-4">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <span className="text-xl font-bold">TOTAL:</span>
-                                            <span className="text-3xl font-bold text-green-600">
-                                                ${calcularTotal().toFixed(2)}
-                                            </span>
-                                        </div>
-
-                                        <button
-                                            onClick={abrirPago}
-                                            disabled={loading}
-                                            className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
-                                        >
-                                            {loading ? 'Procesando...' : '💰 Cobrar'}
-                                        </button>
-
-                                        <button
-                                            onClick={() => setCarrito([])}
-                                            className="w-full mt-2 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition"
-                                        >
-                                            Limpiar
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        
-            {/* Modal de Medios de Pago */}
             {mostrarPago && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
