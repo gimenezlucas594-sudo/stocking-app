@@ -736,7 +736,6 @@ const abrirPago = () => {
                     </>
                 )}
             </div>
-                    </div>
 
                     {/* Carrito */}
                     <div className="lg:col-span-1">
