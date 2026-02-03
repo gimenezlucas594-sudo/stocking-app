@@ -147,32 +147,24 @@ function DashboardJefe({ user, onLogout }) {
         }
     };
 
-  const verificarCodigoDuplicado = async (codigo) => {
-        if (!codigo) {
-            setErrorCodigo('');
-            return true;
-        }
-
-        const duplicado = productos.find(p => 
-            p.codigo_barras && p.codigo_barras === codigo && (!editando || p.id !== editando.id)
-        );
-
-        if (duplicado) {
-            setErrorCodigo(`⚠️ El código ${codigo} ya existe en: ${duplicado.nombre}`);
-            return false;
-        }
-
-        setErrorCodigo('');
-        return true;
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validar código duplicado
-        const codigoValido = await verificarCodigoDuplicado(formData.codigo_barras);
-        if (!codigoValido) {
-            return;
+        // Limpiar error anterior
+        setErrorCodigo('');
+
+        // Validar código duplicado solo si hay código
+        if (formData.codigo_barras) {
+            const duplicado = productos.find(p => 
+                p.codigo_barras && 
+                p.codigo_barras === formData.codigo_barras && 
+                (!editando || p.id !== editando.id)
+            );
+
+            if (duplicado) {
+                setErrorCodigo(`⚠️ El código ${formData.codigo_barras} ya existe en: ${duplicado.nombre}`);
+                return;
+            }
         }
 
         const token = localStorage.getItem('token');
@@ -406,13 +398,9 @@ function DashboardJefe({ user, onLogout }) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras</label>
                                 <input
-                                     type="text"
-                                     value={formData.codigo_barras}
-                                     onChange={(e) => {
-                                                 setFormData({...formData, codigo_barras: e.target.value});
-                                                 setErrorCodigo('');
-                                           }}
-                                     onBlur={(e) => verificarCodigoDuplicado(e.target.value)}
+                                    type="text"
+                                    value={formData.codigo_barras}
+                                    onChange={(e) => setFormData({...formData, codigo_barras: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                     placeholder="Escanear o ingresar manualmente"
                                 />
@@ -545,21 +533,18 @@ function DashboardEmpleado({ user, onLogout }) {
         }
     };
 
-const buscarProducto = (termino) => {
+    const buscarProducto = (termino) => {
         setBusqueda(termino);
         
-        // Si tiene más de 5 caracteres, probablemente es un código escaneado
-        if (termino.length >= 5) {
-            setTimeout(() => {
-                const encontrado = productos.find(p => 
-                    (p.codigo_barras && p.codigo_barras === termino) || 
-                    p.nombre.toLowerCase().includes(termino.toLowerCase())
-                );
-                if (encontrado) {
-                    agregarAlCarrito(encontrado);
-                    setBusqueda('');
-                }
-            }, 100);
+        if (termino.length >= 3) {
+            const encontrado = productos.find(p => 
+                (p.codigo_barras && p.codigo_barras === termino) || 
+                p.nombre.toLowerCase().includes(termino.toLowerCase())
+            );
+            if (encontrado) {
+                agregarAlCarrito(encontrado);
+                setBusqueda('');
+            }
         }
     };
 
