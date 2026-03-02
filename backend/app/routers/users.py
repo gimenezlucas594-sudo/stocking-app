@@ -2,47 +2,51 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import User, UserRole, Local
-from app.schemas import UserCreate, UserRead, LocalCreate, LocalRead, UserInfo
-from app.auth import get_current_user, require_role, hash_password
+from app.models import User, UserRole
+from app.schemas import UserCreate, UserRead
+from app.auth import get_current_user, hash_password
 
 router = APIRouter()
 
-@router.get("/me", response_model=UserInfo)
-def get_me(current_user: User = Depends(get_current_user)):
-    """Obtener info del usuario actual"""
-    return UserInfo(
-        id=current_user.id,
-        username=current_user.username,
-        full_name=current_user.full_name,
-        role=current_user.role,
-        local_id=current_user.local_id,
-        local_nombre=current_user.local.nombre if current_user.local else None
-    )
+@router.get("/", response_model=List[UserRead])
+def listar_usuarios(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Listar todos los usuarios (solo jefes)"""
+    
+    if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado"
+        )
+    
+    usuarios = db.query(User).all()
+    return usuarios
 
 @router.post("/", response_model=UserRead)
 def crear_usuario(
     data: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.JEFE_PAPA, UserRole.JEFE_MAMA))
+    current_user: User = Depends(get_current_user)
 ):
     """Crear nuevo usuario (solo jefes)"""
-    existing = db.query(User).filter(User.username == data.username).first()
-    if existing:
+    
+    if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese nombre"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado"
         )
     
-    if data.local_id:
-        local = db.query(Local).filter(Local.id == data.local_id).first()
-        if not local:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Local no encontrado"
-            )
+    # Verificar si el username ya existe
+    existe = db.query(User).filter(User.username == data.username).first()
+    if existe:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El usuario '{data.username}' ya existe"
+        )
     
-    new_user = User(
+    nuevo_usuario = User(
         username=data.username,
         full_name=data.full_name,
         hashed_password=hash_password(data.password),
@@ -50,47 +54,50 @@ def crear_usuario(
         local_id=data.local_id
     )
     
-    db.add(new_user)
+    db.add(nuevo_usuario)
     db.commit()
-    db.refresh(new_user)
+    db.refresh(nuevo_usuario)
     
-    return new_user
+    return nuevo_usuario
 
-@router.get("/", response_model=List[UserRead])
-def listar_usuarios(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.JEFE_PAPA, UserRole.JEFE_MAMA))
-):
-    """Listar todos los usuarios (solo jefes)"""
-    users = db.query(User).order_by(User.id).all()
-    return users
-
-@router.post("/locales", response_model=LocalRead)
-def crear_local(
-    data: LocalCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.JEFE_PAPA, UserRole.JEFE_MAMA))
-):
-    """Crear nuevo local (solo jefes)"""
-    existing = db.query(Local).filter(Local.nombre == data.nombre).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un local con ese nombre"
-        )
-    
-    new_local = Local(nombre=data.nombre, direccion=data.direccion)
-    db.add(new_local)
-    db.commit()
-    db.refresh(new_local)
-    
-    return new_local
-
-@router.get("/locales", response_model=List[LocalRead])
-def listar_locales(
+@router.delete("/{user_id}")
+def eliminar_usuario(
+    user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Listar locales"""
-    locales = db.query(Local).order_by(Local.id).all()
-    return locales
+    """Eliminar usuario (solo jefes, no puede eliminarse a sí mismo)"""
+    
+    if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado"
+        )
+    
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No puedes eliminarte a ti mismo"
+        )
+    
+    usuario = db.query(User).filter(User.id == user_id).first()
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Verificar si tiene ventas asociadas
+    from app.models import Venta
+    tiene_ventas = db.query(Venta).filter(Venta.vendedor_id == user_id).first()
+    
+    if tiene_ventas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se puede eliminar a '{usuario.username}' porque tiene ventas registradas"
+        )
+    
+    db.delete(usuario)
+    db.commit()
+    
+    return {"message": "Usuario eliminado correctamente"}
