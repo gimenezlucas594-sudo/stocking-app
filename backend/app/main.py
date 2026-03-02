@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.database import engine, Base
-from app.routers import auth, users, productos, ventas
+from app.routers import auth, users, productos, ventas, locales
 import os
 
 # Crear tablas
@@ -25,6 +25,7 @@ app.include_router(productos.router, prefix="/api/productos", tags=["productos"]
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(ventas.router, prefix="/api/ventas", tags=["ventas"])
+app.include_router(locales.router, prefix="/api/locales", tags=["locales"])
 
 # API endpoints
 @app.get("/api")
