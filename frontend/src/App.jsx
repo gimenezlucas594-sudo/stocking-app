@@ -87,7 +87,7 @@ function Login({ onLoginSuccess }) {
     );
 }
 
-// ============ Dashboard Jefe con Productos y Ventas ============
+// ============ Dashboard Jefe con Usuarios, Productos y Ventas ============
 function DashboardJefe({ user, onLogout }) {
     const [vista, setVista] = useState('usuarios');
     const [productos, setProductos] = useState([]);
@@ -103,7 +103,7 @@ function DashboardJefe({ user, onLogout }) {
     const [showModalUsuario, setShowModalUsuario] = useState(false);
     const [formUsuario, setFormUsuario] = useState({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
 
-  useEffect(() => {
+    useEffect(() => {
         if (vista === 'productos') {
             cargarProductos();
         } else if (vista === 'ventas') {
@@ -187,60 +187,6 @@ function DashboardJefe({ user, onLogout }) {
         }
     };
 
-    const handleSubmitUsuario = async (e) => {
-        e.preventDefault();
-        const token = localStorage.getItem('token');
-        
-        try {
-            const response = await fetch(`${API_URL}/users/`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: formUsuario.username,
-                    password: formUsuario.password,
-                    full_name: formUsuario.full_name || null,
-                    role: formUsuario.role,
-                    local_id: formUsuario.local_id ? parseInt(formUsuario.local_id) : null
-                })
-            });
-
-            if (response.ok) {
-                await cargarUsuarios();
-                setShowModalUsuario(false);
-                setFormUsuario({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
-            } else {
-                const error = await response.json();
-                alert('Error: ' + error.detail);
-            }
-        } catch (err) {
-            alert('Error al crear usuario');
-        }
-    };
-
-    const eliminarUsuario = async (id) => {
-        if (!confirm('¿Eliminar este usuario?')) return;
-        
-        const token = localStorage.getItem('token');
-        try {
-            const response = await fetch(`${API_URL}/users/${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (response.ok) {
-                await cargarUsuarios();
-            } else {
-                const error = await response.json();
-                alert('Error: ' + error.detail);
-            }
-        } catch (err) {
-            alert('Error al eliminar usuario');
-        }
-    };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -299,6 +245,39 @@ function DashboardJefe({ user, onLogout }) {
         }
     };
 
+    const handleSubmitUsuario = async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        
+        try {
+            const response = await fetch(`${API_URL}/users/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: formUsuario.username,
+                    password: formUsuario.password,
+                    full_name: formUsuario.full_name || null,
+                    role: formUsuario.role,
+                    local_id: formUsuario.local_id ? parseInt(formUsuario.local_id) : null
+                })
+            });
+
+            if (response.ok) {
+                await cargarUsuarios();
+                setShowModalUsuario(false);
+                setFormUsuario({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
+            }
+        } catch (err) {
+            alert('Error al crear usuario');
+        }
+    };
+
     const eliminarProducto = async (id) => {
         if (!confirm('¿Eliminar este producto?')) return;
         
@@ -308,11 +287,36 @@ function DashboardJefe({ user, onLogout }) {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            
             if (response.ok) {
                 await cargarProductos();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
             }
         } catch (err) {
             alert('Error al eliminar producto');
+        }
+    };
+
+    const eliminarUsuario = async (id) => {
+        if (!confirm('¿Eliminar este usuario?')) return;
+        
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_URL}/users/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                await cargarUsuarios();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
+            }
+        } catch (err) {
+            alert('Error al eliminar usuario');
         }
     };
 
@@ -337,7 +341,7 @@ function DashboardJefe({ user, onLogout }) {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-6">
                             <h1 className="text-2xl font-bold text-indigo-600">StocKing</h1>
-                         <div className="flex gap-2">
+                            <div className="flex gap-2">
                                 <button 
                                     onClick={() => setVista('usuarios')}
                                     className={`px-4 py-2 rounded-lg transition ${vista === 'usuarios' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
@@ -369,7 +373,7 @@ function DashboardJefe({ user, onLogout }) {
             </nav>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-         {vista === 'usuarios' ? (
+                {vista === 'usuarios' ? (
                     <>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h2>
@@ -635,7 +639,7 @@ function DashboardJefe({ user, onLogout }) {
                     </div>
                 </div>
             )}
-            
+
             {showModalUsuario && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
