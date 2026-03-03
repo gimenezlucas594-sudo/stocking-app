@@ -89,7 +89,7 @@ function Login({ onLoginSuccess }) {
 
 // ============ Dashboard Jefe con Productos y Ventas ============
 function DashboardJefe({ user, onLogout }) {
-    const [vista, setVista] = useState('productos');
+    const [vista, setVista] = useState('usuarios');
     const [productos, setProductos] = useState([]);
     const [productosFiltrados, setProductosFiltrados] = useState([]);
     const [busquedaProducto, setBusquedaProducto] = useState('');
@@ -98,10 +98,20 @@ function DashboardJefe({ user, onLogout }) {
     const [editando, setEditando] = useState(null);
     const [formData, setFormData] = useState({ nombre: '', codigo_barras: '', precio: '', stock: '', categoria: '', tipo_venta: 'unidad' });
     const [errorCodigo, setErrorCodigo] = useState('');
+    const [usuarios, setUsuarios] = useState([]);
+    const [locales, setLocales] = useState([]);
+    const [showModalUsuario, setShowModalUsuario] = useState(false);
+    const [formUsuario, setFormUsuario] = useState({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
 
-    useEffect(() => {
-        cargarProductos();
-        if (vista === 'ventas') cargarVentas();
+  useEffect(() => {
+        if (vista === 'productos') {
+            cargarProductos();
+        } else if (vista === 'ventas') {
+            cargarVentas();
+        } else if (vista === 'usuarios') {
+            cargarUsuarios();
+            cargarLocales();
+        }
     }, [vista]);
 
     useEffect(() => {
@@ -144,6 +154,90 @@ function DashboardJefe({ user, onLogout }) {
             }
         } catch (err) {
             console.error('Error:', err);
+        }
+    };
+
+    const cargarUsuarios = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/users/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setUsuarios(data);
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    };
+
+    const cargarLocales = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/locales/`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setLocales(data);
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    };
+
+    const handleSubmitUsuario = async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        
+        try {
+            const response = await fetch(`${API_URL}/users/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: formUsuario.username,
+                    password: formUsuario.password,
+                    full_name: formUsuario.full_name || null,
+                    role: formUsuario.role,
+                    local_id: formUsuario.local_id ? parseInt(formUsuario.local_id) : null
+                })
+            });
+
+            if (response.ok) {
+                await cargarUsuarios();
+                setShowModalUsuario(false);
+                setFormUsuario({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
+            }
+        } catch (err) {
+            alert('Error al crear usuario');
+        }
+    };
+
+    const eliminarUsuario = async (id) => {
+        if (!confirm('¿Eliminar este usuario?')) return;
+        
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_URL}/users/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                await cargarUsuarios();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.detail);
+            }
+        } catch (err) {
+            alert('Error al eliminar usuario');
         }
     };
 
@@ -243,7 +337,13 @@ function DashboardJefe({ user, onLogout }) {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center gap-6">
                             <h1 className="text-2xl font-bold text-indigo-600">StocKing</h1>
-                            <div className="flex gap-2">
+                         <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setVista('usuarios')}
+                                    className={`px-4 py-2 rounded-lg transition ${vista === 'usuarios' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                                >
+                                    Usuarios
+                                </button>
                                 <button 
                                     onClick={() => setVista('productos')}
                                     className={`px-4 py-2 rounded-lg transition ${vista === 'productos' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
@@ -269,7 +369,64 @@ function DashboardJefe({ user, onLogout }) {
             </nav>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {vista === 'productos' ? (
+         {vista === 'usuarios' ? (
+                    <>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h2>
+                            <button 
+                                onClick={() => {
+                                    setShowModalUsuario(true);
+                                    setFormUsuario({ username: '', password: '', full_name: '', role: 'empleado', local_id: '' });
+                                }}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                            >
+                                + Nuevo Usuario
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre Completo</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Local</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {usuarios.map(usuario => (
+                                        <tr key={usuario.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{usuario.username}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{usuario.full_name || '-'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {usuario.role === 'jefe_papa' && '👑 Jefe Papá'}
+                                                {usuario.role === 'jefe_mama' && '👑 Jefe Mamá'}
+                                                {usuario.role === 'empleado' && '👤 Empleado'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {locales.find(l => l.id === usuario.local_id)?.nombre || '-'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <button 
+                                                    onClick={() => eliminarUsuario(usuario.id)} 
+                                                    className="text-red-600 hover:text-red-900"
+                                                    disabled={usuario.id === user.id}
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {usuarios.length === 0 && (
+                                <div className="text-center py-12 text-gray-500">No hay usuarios registrados</div>
+                            )}
+                        </div>
+                    </>
+                ) : vista === 'productos' ? (
                     <>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-3xl font-bold text-gray-900">Productos</h2>
@@ -469,6 +626,87 @@ function DashboardJefe({ user, onLogout }) {
                                         setShowModal(false);
                                         setErrorCodigo('');
                                     }} 
+                                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            
+            {showModalUsuario && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold mb-4">Nuevo Usuario</h3>
+                        <form onSubmit={handleSubmitUsuario} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Usuario *</label>
+                                <input
+                                    type="text"
+                                    value={formUsuario.username}
+                                    onChange={(e) => setFormUsuario({...formUsuario, username: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+                                <input
+                                    type="password"
+                                    value={formUsuario.password}
+                                    onChange={(e) => setFormUsuario({...formUsuario, password: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                                <input
+                                    type="text"
+                                    value={formUsuario.full_name}
+                                    onChange={(e) => setFormUsuario({...formUsuario, full_name: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
+                                <select
+                                    value={formUsuario.role}
+                                    onChange={(e) => setFormUsuario({...formUsuario, role: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    required
+                                >
+                                    <option value="empleado">Empleado</option>
+                                    <option value="jefe_papa">Jefe Papá</option>
+                                    <option value="jefe_mama">Jefe Mamá</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Local (solo para empleados)</label>
+                                <select
+                                    value={formUsuario.local_id}
+                                    onChange={(e) => setFormUsuario({...formUsuario, local_id: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    disabled={formUsuario.role !== 'empleado'}
+                                >
+                                    <option value="">Sin local</option>
+                                    {locales.map(local => (
+                                        <option key={local.id} value={local.id}>{local.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex gap-2 pt-4">
+                                <button 
+                                    type="submit" 
+                                    className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700"
+                                >
+                                    Crear Usuario
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowModalUsuario(false)} 
                                     className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300"
                                 >
                                     Cancelar
