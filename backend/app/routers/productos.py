@@ -79,7 +79,7 @@ def eliminar_producto(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Eliminar producto (solo si no tiene ventas asociadas)"""
+    """Eliminar producto sin restricciones"""
     
     if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
         raise HTTPException(
@@ -94,16 +94,11 @@ def eliminar_producto(
             detail="Producto no encontrado"
         )
     
-    # Verificar si tiene ventas asociadas
+    # Eliminar items de ventas relacionados primero
     from app.models import VentaItem
-    tiene_ventas = db.query(VentaItem).filter(VentaItem.producto_id == producto_id).first()
+    db.query(VentaItem).filter(VentaItem.producto_id == producto_id).delete()
     
-    if tiene_ventas:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No se puede eliminar '{producto.nombre}' porque tiene ventas registradas"
-        )
-    
+    # Ahora eliminar el producto
     db.delete(producto)
     db.commit()
     
