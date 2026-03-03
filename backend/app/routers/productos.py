@@ -73,13 +73,20 @@ def actualizar_producto(
     
     return producto
 
-@router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{producto_id}")
 def eliminar_producto(
     producto_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(UserRole.JEFE_PAPA, UserRole.JEFE_MAMA))
+    current_user: User = Depends(get_current_user)
 ):
-    """Eliminar producto (solo jefes)"""
+    """Eliminar producto (solo si no tiene ventas asociadas)"""
+    
+    if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado"
+        )
+    
     producto = db.query(Producto).filter(Producto.id == producto_id).first()
     if not producto:
         raise HTTPException(
@@ -87,7 +94,17 @@ def eliminar_producto(
             detail="Producto no encontrado"
         )
     
+    # Verificar si tiene ventas asociadas
+    from app.models import VentaItem
+    tiene_ventas = db.query(VentaItem).filter(VentaItem.producto_id == producto_id).first()
+    
+    if tiene_ventas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se puede eliminar '{producto.nombre}' porque tiene ventas registradas"
+        )
+    
     db.delete(producto)
     db.commit()
     
-    return None
+    return {"message": "Producto eliminado correctamente"}
