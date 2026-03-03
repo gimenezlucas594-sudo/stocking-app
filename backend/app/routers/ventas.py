@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models import User, Venta, VentaItem, Producto
+from app.models import User, Venta, VentaItem, Producto, UserRole
 from app.schemas import VentaCreate, VentaRead
 from app.auth import get_current_user
 
@@ -120,8 +120,10 @@ def obtener_venta(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No autorizado"
         )
+    
+    return venta
 
-    @router.delete("/{venta_id}")
+@router.delete("/{venta_id}")
 def eliminar_venta(
     venta_id: int,
     db: Session = Depends(get_db),
@@ -146,5 +148,3 @@ def eliminar_venta(
     db.commit()
     
     return {"message": "Venta eliminada correctamente"}
-    
-    return venta
