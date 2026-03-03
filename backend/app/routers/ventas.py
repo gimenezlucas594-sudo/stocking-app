@@ -120,5 +120,31 @@ def obtener_venta(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No autorizado"
         )
+
+    @router.delete("/{venta_id}")
+def eliminar_venta(
+    venta_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Eliminar venta (solo jefes)"""
+    
+    if current_user.role not in [UserRole.JEFE_PAPA, UserRole.JEFE_MAMA]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado"
+        )
+    
+    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    if not venta:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Venta no encontrada"
+        )
+    
+    db.delete(venta)
+    db.commit()
+    
+    return {"message": "Venta eliminada correctamente"}
     
     return venta
