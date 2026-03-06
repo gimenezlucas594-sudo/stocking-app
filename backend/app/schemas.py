@@ -8,10 +8,10 @@ class UserInfo(BaseModel):
     id: int
     username: str
     full_name: Optional[str] = None
-    role: UserRole
+    role: str  # Cambiar de UserRole a str
     local_id: Optional[int] = None
     local_nombre: Optional[str] = None
-
+    
 # ========== AUTH ==========
 class LoginRequest(BaseModel):
     username: str
@@ -34,7 +34,7 @@ class UserRead(BaseModel):
     id: int
     username: str
     full_name: Optional[str] = None
-    role: UserRole
+    role: str  # Cambiar de UserRole a str
     is_active: bool
     local_id: Optional[int] = None
     
